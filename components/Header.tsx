@@ -18,7 +18,7 @@ export default function Header() {
 
   return (
     // Eye Container: h-8 w-8 matches text-2xl line-height well
-    <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-[inset_0_-2px_4px_rgba(0,0,0,0.3)] border border-slate-200">
+    <div className="relative flex w-8 items-center justify-center rounded-full bg-white shadow-[inset_0_-2px_4px_rgba(0,0,0,0.3)] border border-slate-200">
       {/* Pupil */}
       <motion.div
         className="h-3 w-3 rounded-full bg-black"
@@ -40,7 +40,7 @@ export default function Header() {
   }, []);
   
   return (
-    <div className="bg-gradient-to-b from-[#191919] via-[#141414] to-[#0A0A0B] min-h-screen text-white">
+    <div className="bg-gradient-to-b from-[#191919] via-[#141414] to-[#0A0A0B] text-white">
   <div className="border-b-2 border-gray-600 border-opacity-50 h-16 flex justify-between px-12 py-3">
     <div className="flex flex-col items-center justify-center gap-8 text-white">
       
