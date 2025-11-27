@@ -42,7 +42,7 @@ export default function Header() {
   }, []);
 
   return (
-    <div className="bg-gradient-to-b from-[#191919] via-[#141414] to-[#0A0A0B] text-white">
+    <div className="bg-black text-white">
       <div className="border-b-2 border-gray-600 border-opacity-50 h-16 flex justify-between px-12 py-3">
 
         {/* LOGO */}
@@ -60,7 +60,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* CLOCK */}
+  
         <div className="flex flex-row items-end gap-2">
           <h1 className="font-bold text-4xl leading-none">
             {format(time, "hh:mm:ss")}

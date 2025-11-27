@@ -51,19 +51,18 @@ export default function Stopwatch() {
   return (
     <div className="w-full max-w-md bg-zinc-900 p-8 rounded-3xl shadow-2xl text-white">
 
-      {/* Stopwatch Title */}
       <h2 className="text-center text-xl font-semibold text-zinc-300 mb-10 tracking-wide">
         Stopwatch
       </h2>
 
-      {/* Display */}
+     
       <div className="text-center mb-10">
         <div className="text-[5rem] leading-none font-bold tracking-tight">
           {formatTime(time)}
         </div>
       </div>
 
-      {/* Action Buttons */}
+   
       <div className="flex gap-4 mb-10">
         <button
           onClick={() => setRunning(true)}
@@ -95,7 +94,6 @@ export default function Stopwatch() {
         </button>
       </div>
 
-      {/* Lap Button */}
       <button
         onClick={addLap}
         disabled={!running}
@@ -107,7 +105,6 @@ export default function Stopwatch() {
         Add Flag
       </button>
 
-      {/* Lap List */}
       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
         {laps.length === 0 ? (
           <p className="text-center text-zinc-500"></p>

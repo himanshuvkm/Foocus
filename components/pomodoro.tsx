@@ -87,12 +87,12 @@ export function PomodoroTimer() {
         </button>
       </div>
 
-      {/* Timer Display */}
+   
       <div className="text-center mb-12">
         <div className="text-[7rem] leading-none font-bold text-white tracking-tight">{formatTime(timeLeft)}</div>
       </div>
 
-      {/* Action Buttons */}
+
       <div className="flex gap-4">
         <button
           onClick={handleStart}

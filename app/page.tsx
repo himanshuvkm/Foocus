@@ -18,7 +18,6 @@ export default function Home() {
 
      <div className="w-full py-10 flex flex-col items-center gap-6 ">
 
-      {/* Toggle Buttons */}
       <div className="flex bg-zinc-900 p-2 rounded-full shadow-lg gap-2">
         
         <button
@@ -47,7 +46,6 @@ export default function Home() {
 
       </div>
 
-      {/* Mode Content */}
       {mode === "timer" ? <PomodoroTimer /> : <Stopwatch />}
     </div>
 
