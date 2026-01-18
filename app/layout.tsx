@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SettingsProvider } from "@/contexts/settings-context";
+import { TaskProvider } from "@/contexts/task-context";
+import { TimerProvider } from "@/contexts/timer-context";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 
 export const metadata: Metadata = {
@@ -19,14 +23,22 @@ export default function RootLayout({
       <body
         className="bg-black"
       >
-         <ThemeProvider
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+          <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <SettingsProvider>
+              <TaskProvider>
+                <TimerProvider>
+                  {children}
+                </TimerProvider>
+              </TaskProvider>
+            </SettingsProvider>
           </ThemeProvider>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );

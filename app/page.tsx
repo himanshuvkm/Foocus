@@ -1,56 +1,39 @@
-"use client"
+"use client";
 
-import Header from "@/components/Header";
-import { PomodoroTimer } from "@/components/pomodoro";
-import Stopwatch from "@/components/stopwatch";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { TimerMain } from '@/components/timer/timer-main';
+import { TaskList } from '@/components/tasks/task-list';
+import { Header } from '@/components/layout/header';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Home() {
-  const [mode, setMode] = useState("timer");
-
   return (
-   <div className="flex min-h-screen flex-col ">
-  
-  <div>
-    <Header />
-  </div>
+    <main className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+      <Header />
 
-     <div className="w-full py-10 flex flex-col items-center gap-6 ">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div className="container mx-auto px-4 py-24 min-h-full flex flex-col gap-16">
 
-      <div className="flex bg-zinc-900 p-2 rounded-full shadow-lg gap-2">
-        
-        <button
-          onClick={() => setMode("timer")}
-          className={cn(
-            "px-5 py-2 rounded-full text-sm font-medium transition-all",
-            mode === "timer"
-              ? "bg-zinc-800 text-white shadow-md"
-              : "text-zinc-400 hover:text-white"
-          )}
-        >
-          Timer
-        </button>
+          {/* Timer Hero Section */}
+          <motion.section
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="flex justify-center"
+          >
+            <TimerMain />
+          </motion.section>
 
-        <button
-          onClick={() => setMode("stopwatch")}
-          className={cn(
-            "px-5 py-2 rounded-full text-sm font-medium transition-all",
-            mode === "stopwatch"
-              ? "bg-zinc-800 text-white shadow-md"
-              : "text-zinc-400 hover:text-white"
-          )}
-        >
-          Stopwatch
-        </button>
-
+          {/* Tasks Section */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="w-full max-w-2xl mx-auto"
+          >
+            <TaskList />
+          </motion.section>
+        </div>
       </div>
-
-      {mode === "timer" ? <PomodoroTimer /> : <Stopwatch />}
-    </div>
-
-</div>
-
-  )
+    </main>
+  );
 }
-
