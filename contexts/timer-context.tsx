@@ -12,6 +12,7 @@ interface TimerContextType {
     isActive: boolean;
     activeTaskId: string | null;
     setActiveTaskId: (id: string | null) => void;
+    setMode: (mode: TimerMode) => void;
     toggleTimer: () => void;
     resetTimer: () => void;
     skipSession: () => void;
@@ -50,6 +51,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         if (newMode === 'work') setTimeLeft(timer.workDuration);
         else if (newMode === 'short_break') setTimeLeft(timer.shortBreakDuration);
         else if (newMode === 'long_break') setTimeLeft(timer.longBreakDuration);
+        else if (newMode === 'stopwatch') setTimeLeft(0);
         setIsActive(false);
     }, [timer]);
 
@@ -86,19 +88,27 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prev) => {
-                    if (prev <= 1) {
-                        handleComplete();
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
+        if (isActive) {
+            if (mode === 'stopwatch') {
+                // Stopwatch mode: count up
+                interval = setInterval(() => {
+                    setTimeLeft((prev) => prev + 1);
+                }, 1000);
+            } else if (timeLeft > 0) {
+                // Timer modes: count down
+                interval = setInterval(() => {
+                    setTimeLeft((prev) => {
+                        if (prev <= 1) {
+                            handleComplete();
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+            }
         }
         return () => clearInterval(interval);
-    }, [isActive, timeLeft, handleComplete]);
+    }, [isActive, timeLeft, handleComplete, mode]);
 
     const toggleTimer = () => {
         if (soundEnabled) playClick();
@@ -110,6 +120,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         if (mode === 'work') setTimeLeft(timer.workDuration);
         else if (mode === 'short_break') setTimeLeft(timer.shortBreakDuration);
         else if (mode === 'long_break') setTimeLeft(timer.longBreakDuration);
+        else if (mode === 'stopwatch') setTimeLeft(0);
     };
 
     const skipSession = () => {
@@ -122,8 +133,13 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Calculate progress for UI ring
-    const totalTime = mode === 'work' ? timer.workDuration : (mode === 'short_break' ? timer.shortBreakDuration : timer.longBreakDuration);
-    const progress = 1 - (timeLeft / totalTime);
+    let progress = 0;
+    if (mode === 'stopwatch') {
+        progress = 1; // Always full for stopwatch
+    } else {
+        const totalTime = mode === 'work' ? timer.workDuration : (mode === 'short_break' ? timer.shortBreakDuration : timer.longBreakDuration);
+        progress = 1 - (timeLeft / totalTime);
+    }
 
     return (
         <TimerContext.Provider
@@ -133,6 +149,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
                 isActive,
                 activeTaskId,
                 setActiveTaskId,
+                setMode: switchMode,
                 toggleTimer,
                 resetTimer,
                 skipSession,

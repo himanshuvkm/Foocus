@@ -1,4 +1,4 @@
-export type TimerMode = 'work' | 'short_break' | 'long_break';
+export type TimerMode = 'work' | 'short_break' | 'long_break' | 'stopwatch';
 
 export interface TimerSettings {
   workDuration: number; // in seconds

@@ -9,7 +9,7 @@ import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming you have this utility
 
 export function TimerMain() {
-    const { timeLeft, progress, isActive, toggleTimer, resetTimer, skipSession, mode, updateTimeLeft } = useTimer();
+    const { timeLeft, progress, isActive, toggleTimer, resetTimer, skipSession, mode, updateTimeLeft, setMode } = useTimer();
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -21,7 +21,7 @@ export function TimerMain() {
     }, [isEditing]);
 
     const handleTimeClick = () => {
-        if (!isActive) {
+        if (!isActive && mode !== 'stopwatch') {
             setIsEditing(true);
             setEditValue(formatTime(timeLeft));
         }
@@ -59,20 +59,11 @@ export function TimerMain() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const modeColors = {
-        work: 'text-primary',
-        short_break: 'text-chart-2', // Variant color
-        long_break: 'text-chart-4',  // Variant color
-    };
-
-    // Dynamic color for ring could be passed down, but for now simple class toggle
-    const ringColorRaw = mode === 'work' ? 'var(--primary)' : (mode === 'short_break' ? 'var(--chart-2)' : 'var(--chart-4)');
-
     return (
         <div className="flex flex-col items-center justify-center space-y-8">
             <TimerProgressRing progress={progress} size={400} strokeWidth={16}>
                 <div className="flex flex-col items-center gap-4">
-                    <span className="text-xl uppercase tracking-widest font-medium text-muted-foreground">
+                    <span className="text-xl uppercase tracking-widest font-medium text-muted-foreground mt-2">
                         {mode.replace('_', ' ')}
                     </span>
                     {isEditing ? (
@@ -88,15 +79,16 @@ export function TimerMain() {
                         <div
                             onClick={handleTimeClick}
                             className={cn(
-                                "text-8xl font-bold tracking-tighter tabular-nums text-foreground cursor-pointer hover:opacity-80 transition-opacity",
-                                isActive && "cursor-default hover:opacity-100"
+                                "text-8xl font-bold tracking-tighter tabular-nums text-foreground transition-opacity",
+                                !isActive && mode !== 'stopwatch' ? "cursor-pointer hover:opacity-80" : "cursor-default",
+                                isActive && "hover:opacity-100"
                             )}
-                            title={!isActive ? "Click to edit time" : undefined}
+                            title={!isActive && mode !== 'stopwatch' ? "Click to edit time" : undefined}
                         >
                             {formatTime(timeLeft)}
                         </div>
                     )}
-                    <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-4 mt-4 min-h-[48px]">
                         <Button
                             variant="outline"
                             size="icon"
@@ -118,18 +110,30 @@ export function TimerMain() {
                             {isActive ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
                         </Button>
 
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={skipSession}
-                            className="h-12 w-12 rounded-full hover:scale-110 transition-transform"
-                            title="Skip"
-                        >
-                            <SkipForward className="w-5 h-5" />
-                        </Button>
+                        <div className="w-12 h-12 flex items-center justify-center">
+                            {mode !== 'stopwatch' && (
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={skipSession}
+                                    className="h-12 w-12 rounded-full hover:scale-110 transition-transform"
+                                    title="Skip"
+                                >
+                                    <SkipForward className="w-5 h-5" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </TimerProgressRing>
+
+            {/* Mode Selector */}
+            <div className="flex items-center gap-2 p-1 rounded-full bg-secondary/50 backdrop-blur-sm">
+                <Button variant={mode === 'work' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('work')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'work' && "bg-background shadow-sm")}>Work</Button>
+                <Button variant={mode === 'short_break' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('short_break')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'short_break' && "bg-background shadow-sm")}>Short</Button>
+                <Button variant={mode === 'long_break' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('long_break')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'long_break' && "bg-background shadow-sm")}>Long</Button>
+                <Button variant={mode === 'stopwatch' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('stopwatch')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'stopwatch' && "bg-background shadow-sm")}>Stopwatch</Button>
+            </div>
         </div>
     );
 }
