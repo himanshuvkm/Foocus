@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { getDB } from "@/lib/db";
-import { format, subDays, isSameDay, parseISO } from "date-fns";
+import { format, subDays } from "date-fns";
 
 interface DailyStats {
     date: string; // YYYY-MM-DD
@@ -54,7 +54,6 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
             // Note: If today is 0 sessions, streak includes yesterday? 
             // Usually streak is "consecutive days with activity". 
             // If I haven't done anything today yet, my streak is technically still active from yesterday if I did something yesterday.
-            let streak = 0;
             // distinct days with activity
             // Check broadly
             const allRecords = await db.getAll("analytics");

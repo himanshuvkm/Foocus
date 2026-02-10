@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { TimerMode } from "@/lib/types";
 import { useSettings } from "./settings-context";
 import { useTasks } from "./task-context";
-import { useSound } from "./sound-context";
 import { useAnalytics } from "./analytics-context";
 
 interface TimerContextType {
@@ -27,7 +26,6 @@ const TimerContext = createContext<TimerContextType | null>(null);
 export function TimerProvider({ children }: { children: React.ReactNode }) {
     const { timer } = useSettings();
     const { tasks, updateTask } = useTasks();
-    const { playAlarm, playClick } = useSound();
     const { logSession } = useAnalytics();
 
     const [mode, setMode] = useState<TimerMode>("work");
@@ -40,6 +38,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     const endTimeRef = useRef<number | null>(null);
     const rafRef = useRef<number | null>(null);
     const initialDurationRef = useRef<number>(timer.workDuration);
+    const stopwatchStartRef = useRef<number | null>(null);
 
     // Initialize timer duration when settings or mode change (if not active)
     useEffect(() => {
@@ -63,7 +62,6 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
     const handleComplete = useCallback(() => {
         setIsActive(false);
-        playAlarm();
 
         // Update Task stats if working
         if (mode === 'work') {
@@ -94,20 +92,11 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
             if (timer.autoStartWork) setTimeout(() => setIsActive(true), 100);
         }
 
-    }, [mode, sessionsCompleted, timer, activeTaskId, tasks, updateTask, switchMode, playAlarm]);
+    }, [mode, sessionsCompleted, timer, activeTaskId, tasks, updateTask, switchMode, logSession]);
 
     // Timer Logic Loop
     useEffect(() => {
         if (isActive && mode !== 'stopwatch') {
-            // If starting fresh or resuming, we need to calculate target end time
-            // But if we just rely on endTime, pausing becomes hard.
-            // Better approach for headers:
-            // On start/resume: endTime = Date.now() + timeLeft * 1000
-
-            if (!endTimeRef.current) {
-                endTimeRef.current = Date.now() + timeLeft * 1000;
-            }
-
             const tick = () => {
                 const now = Date.now();
                 if (endTimeRef.current) {
@@ -130,12 +119,12 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
             };
         } else if (isActive && mode === 'stopwatch') {
             // Stopwatch logic (count up)
-            const startTime = Date.now() - (timeLeft * 1000); // Derive start time from current count
-
             const tick = () => {
                 const now = Date.now();
-                const elapsed = Math.floor((now - startTime) / 1000);
-                setTimeLeft(elapsed);
+                if (stopwatchStartRef.current != null) {
+                    const elapsed = Math.floor((now - stopwatchStartRef.current) / 1000);
+                    setTimeLeft(elapsed);
+                }
                 rafRef.current = requestAnimationFrame(tick);
             }
             rafRef.current = requestAnimationFrame(tick);
@@ -148,18 +137,24 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
             endTimeRef.current = null;
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
         }
-    }, [isActive, mode, handleComplete]); // Removed timeLeft from dependency to avoid loop, but need to handle pause correctly
+    }, [isActive, mode, handleComplete]);
 
     const toggleTimer = () => {
-        playClick();
         setIsActive(prev => {
             if (prev) {
-                // Pausing: endTimeRef is cleared in useEffect cleanup/else branch, 
-                // but we need to ensure timeLeft isn't lost. 
-                // actually timeLeft is state, so it persists. 
-                // When resuming, useEffect will calculate new endTimeRef based on current timeLeft.
+                // Pausing: endTimeRef is cleared in useEffect cleanup/else branch,
+                // but we need to ensure timeLeft isn't lost.
+                // timeLeft is state, so it persists.
                 return false;
             } else {
+                const now = Date.now();
+                if (mode === 'stopwatch') {
+                    // Derive start time from current elapsed seconds
+                    stopwatchStartRef.current = now - timeLeft * 1000;
+                } else {
+                    // Countdown: derive planned end time from remaining seconds
+                    endTimeRef.current = now + timeLeft * 1000;
+                }
                 return true;
             }
         });
@@ -171,7 +166,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         if (mode === 'work') setTimeLeft(timer.workDuration);
         else if (mode === 'short_break') setTimeLeft(timer.shortBreakDuration);
         else if (mode === 'long_break') setTimeLeft(timer.longBreakDuration);
-        else if (mode === 'stopwatch') setTimeLeft(0);
+        else if (mode === 'stopwatch') {
+            setTimeLeft(0);
+            stopwatchStartRef.current = null;
+        }
     };
 
     const skipSession = () => {

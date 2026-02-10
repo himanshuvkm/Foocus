@@ -29,7 +29,7 @@ export function StatsDashboard() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">{formatDuration(dailyStats?.totalFocusTime || 0)}</div>
-                    <p className="text-xs text-muted-foreground">in today's sessions</p>
+                    <p className="text-xs text-muted-foreground">in today&apos;s sessions</p>
                 </CardContent>
             </Card>
 
@@ -61,7 +61,7 @@ export function StatsDashboard() {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="h-[80px] flex items-end justify-between gap-1 pt-2">
-                    {weeklyStats.map((stat, i) => (
+                    {weeklyStats.map((stat) => (
                         <div key={stat.date} className="relative flex-1 flex flex-col justify-end gap-1 group">
                             <div
                                 className="w-full bg-primary/20 rounded-sm hover:bg-primary/40 transition-colors"

@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SettingsProvider } from "@/contexts/settings-context";
 import { TaskProvider } from "@/contexts/task-context";
 import { TimerProvider } from "@/contexts/timer-context";
-import { SoundProvider } from "@/contexts/sound-context";
 import { AnalyticsProvider } from "@/contexts/analytics-context";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
@@ -34,13 +32,11 @@ export default function RootLayout({
           >
             <SettingsProvider>
               <TaskProvider>
-                <SoundProvider>
-                  <AnalyticsProvider>
-                    <TimerProvider>
-                      {children}
-                    </TimerProvider>
-                  </AnalyticsProvider>
-                </SoundProvider>
+                <AnalyticsProvider>
+                  <TimerProvider>
+                    {children}
+                  </TimerProvider>
+                </AnalyticsProvider>
               </TaskProvider>
             </SettingsProvider>
           </ThemeProvider>

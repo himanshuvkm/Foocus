@@ -22,7 +22,7 @@ const DB_VERSION = 2;
 
 export const initDB = async (): Promise<IDBPDatabase<FoocusDB>> => {
     return openDB<FoocusDB>(DB_NAME, DB_VERSION, {
-        upgrade(db, oldVersion, newVersion, transaction) {
+        upgrade(db, oldVersion) {
             if (!db.objectStoreNames.contains('tasks')) {
                 const store = db.createObjectStore('tasks', { keyPath: 'id' });
                 store.createIndex('by-status', 'status');
@@ -34,7 +34,7 @@ export const initDB = async (): Promise<IDBPDatabase<FoocusDB>> => {
                 if (db.objectStoreNames.contains('analytics')) {
                     db.deleteObjectStore('analytics');
                 }
-                const store = db.createObjectStore('analytics', { keyPath: 'date' });
+                db.createObjectStore('analytics', { keyPath: 'date' });
                 // No index needed for date since it's the key
             }
         },

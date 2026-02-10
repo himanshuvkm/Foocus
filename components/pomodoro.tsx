@@ -17,8 +17,6 @@ export function PomodoroTimer() {
       interval = setInterval(() => {
         setTimeLeft((time) => time - 1)
       }, 1000)
-    } else if (timeLeft === 0) {
-      setIsActive(false)
     }
 
     return () => clearInterval(interval)

@@ -15,7 +15,7 @@ interface TaskItemProps {
 
 export function TaskItem({ task }: TaskItemProps) {
     const { toggleTaskCompletion, deleteTask } = useTasks();
-    const { activeTaskId, setActiveTaskId, isActive } = useTimer();
+    const { activeTaskId, setActiveTaskId } = useTimer();
 
     const isCompleted = task.status === 'completed';
     const isActiveTask = activeTaskId === task.id;

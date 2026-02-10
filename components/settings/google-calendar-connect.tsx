@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from '@/components/ui/button';
 import { Calendar } from 'lucide-react';
-import { useSettings } from '@/contexts/settings-context';
 import { cn } from '@/lib/utils';
 
 export function GoogleCalendarConnect() {

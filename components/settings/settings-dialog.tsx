@@ -14,10 +14,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useSettings } from "@/contexts/settings-context";
 import { Settings as SettingsIcon } from "lucide-react";
-import { GoogleCalendarConnect } from "./google-calendar-connect";
 
 export function SettingsDialog() {
-    const { timer, soundEnabled, notificationsEnabled, updateSettings, updateTimerSettings } = useSettings();
+    const { timer, notificationsEnabled, updateSettings, updateTimerSettings } = useSettings();
 
     // Local state for inputs to avoid jittery updates, commit on blur or change
     const [workMinutes, setWorkMinutes] = useState(timer.workDuration / 60);
@@ -108,14 +107,6 @@ export function SettingsDialog() {
 
                     <div className="space-y-4">
                         <h4 className="font-medium leading-none text-muted-foreground uppercase text-xs tracking-wider">Application</h4>
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="sound">Sound</Label>
-                            <Switch
-                                id="sound"
-                                checked={soundEnabled}
-                                onCheckedChange={(checked) => updateSettings({ soundEnabled: checked })}
-                            />
-                        </div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="notifications">Notifications</Label>
                             <Switch

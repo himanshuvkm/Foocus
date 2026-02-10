@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Settings, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import { SettingsDialog } from '@/components/settings/settings-dialog';
