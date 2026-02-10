@@ -1,11 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { AppSettings, DEFAULT_SETTINGS, TimerSettings } from "@/lib/types";
+import { AppSettings, DEFAULT_SETTINGS, TimerSettings, SoundSettings } from "@/lib/types";
 
 interface SettingsContextType extends AppSettings {
     updateSettings: (settings: Partial<AppSettings>) => void;
     updateTimerSettings: (settings: Partial<TimerSettings>) => void;
+    updateSoundSettings: (settings: Partial<SoundSettings>) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -43,6 +44,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         }));
     };
 
+    const updateSoundSettings = (newSoundSettings: Partial<SoundSettings>) => {
+        setSettings((prev) => ({
+            ...prev,
+            sound: { ...prev.sound, ...newSoundSettings },
+        }));
+    };
+
     if (!loaded) return null; // Or a loading spinner
 
     return (
@@ -51,6 +59,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
                 ...settings,
                 updateSettings,
                 updateTimerSettings,
+                updateSoundSettings,
             }}
         >
             {children}

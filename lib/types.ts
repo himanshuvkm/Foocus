@@ -25,16 +25,26 @@ export interface Task {
   updatedAt: number;
 }
 
+export interface SoundSettings {
+  enabled: boolean;
+  volume: number;
+  ambient: 'none' | 'rain' | 'forest' | 'cafe' | 'lofi';
+}
+
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
-  soundEnabled: boolean;
+  sound: SoundSettings;
   notificationsEnabled: boolean;
   timer: TimerSettings;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
-  soundEnabled: true,
+  sound: {
+    enabled: true,
+    volume: 0.5,
+    ambient: 'none',
+  },
   notificationsEnabled: true,
   timer: {
     workDuration: 25 * 60,

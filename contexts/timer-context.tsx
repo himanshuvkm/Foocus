@@ -4,7 +4,8 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { TimerMode } from "@/lib/types";
 import { useSettings } from "./settings-context";
 import { useTasks } from "./task-context";
-import { useAudio } from "@/hooks/use-audio";
+import { useSound } from "./sound-context";
+import { useAnalytics } from "./analytics-context";
 
 interface TimerContextType {
     mode: TimerMode;
@@ -18,13 +19,16 @@ interface TimerContextType {
     skipSession: () => void;
     updateTimeLeft: (seconds: number) => void;
     progress: number; // 0 to 1 scale
+    sessionsCompleted: number;
 }
 
 const TimerContext = createContext<TimerContextType | null>(null);
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
-    const { timer, soundEnabled } = useSettings();
+    const { timer } = useSettings();
     const { tasks, updateTask } = useTasks();
+    const { playAlarm, playClick } = useSound();
+    const { logSession } = useAnalytics();
 
     const [mode, setMode] = useState<TimerMode>("work");
     const [timeLeft, setTimeLeft] = useState(timer.workDuration);
@@ -32,91 +36,138 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
     const [sessionsCompleted, setSessionsCompleted] = useState(0);
 
-    const { play: playAlarm } = useAudio("/sounds/alarm.mp3"); // Placeholder path
-    const { play: playClick } = useAudio("/sounds/click.mp3");
+    // Refs for accurate timing (drift correction)
+    const endTimeRef = useRef<number | null>(null);
+    const rafRef = useRef<number | null>(null);
+    const initialDurationRef = useRef<number>(timer.workDuration);
 
-    const startTimeRef = useRef<number | null>(null);
-
-    // Initialize timer when settings invoke
+    // Initialize timer duration when settings or mode change (if not active)
     useEffect(() => {
         if (!isActive) {
-            if (mode === 'work') setTimeLeft(timer.workDuration);
-            if (mode === 'short_break') setTimeLeft(timer.shortBreakDuration);
-            if (mode === 'long_break') setTimeLeft(timer.longBreakDuration);
+            let newTime = 0;
+            if (mode === 'work') newTime = timer.workDuration;
+            else if (mode === 'short_break') newTime = timer.shortBreakDuration;
+            else if (mode === 'long_break') newTime = timer.longBreakDuration;
+            else if (mode === 'stopwatch') newTime = 0;
+
+            setTimeLeft(newTime);
+            initialDurationRef.current = newTime === 0 && mode !== 'stopwatch' ? 1 : newTime;
         }
     }, [timer, mode, isActive]);
 
     const switchMode = useCallback((newMode: TimerMode) => {
         setMode(newMode);
-        if (newMode === 'work') setTimeLeft(timer.workDuration);
-        else if (newMode === 'short_break') setTimeLeft(timer.shortBreakDuration);
-        else if (newMode === 'long_break') setTimeLeft(timer.longBreakDuration);
-        else if (newMode === 'stopwatch') setTimeLeft(0);
         setIsActive(false);
-    }, [timer]);
+        // Time will be updated by the useEffect above
+    }, []);
 
     const handleComplete = useCallback(() => {
         setIsActive(false);
-        if (soundEnabled) playAlarm();
+        playAlarm();
 
         // Update Task stats if working
-        if (mode === 'work' && activeTaskId) {
-            const task = tasks.find(t => t.id === activeTaskId);
-            if (task) {
-                updateTask({ ...task, pomodorosCompleted: task.pomodorosCompleted + 1 });
-            }
-        }
-
-        // Determine next mode
         if (mode === 'work') {
             const newSessions = sessionsCompleted + 1;
             setSessionsCompleted(newSessions);
+
+            if (activeTaskId) {
+                const task = tasks.find(t => t.id === activeTaskId);
+                if (task) {
+                    updateTask({ ...task, pomodorosCompleted: task.pomodorosCompleted + 1 });
+                }
+            }
+
+            // Log session to analytics
+            logSession(timer.workDuration);
+
+            // Determine next mode
             if (newSessions % timer.longBreakInterval === 0) {
                 switchMode('long_break');
-                if (timer.autoStartBreaks) setIsActive(true);
+                if (timer.autoStartBreaks) setTimeout(() => setIsActive(true), 100);
             } else {
                 switchMode('short_break');
-                if (timer.autoStartBreaks) setIsActive(true);
+                if (timer.autoStartBreaks) setTimeout(() => setIsActive(true), 100);
             }
         } else {
             // Break is over, back to work
             switchMode('work');
-            if (timer.autoStartWork) setIsActive(true);
+            if (timer.autoStartWork) setTimeout(() => setIsActive(true), 100);
         }
 
-    }, [mode, sessionsCompleted, timer, activeTaskId, tasks, updateTask, switchMode, soundEnabled, playAlarm]);
+    }, [mode, sessionsCompleted, timer, activeTaskId, tasks, updateTask, switchMode, playAlarm]);
 
+    // Timer Logic Loop
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isActive) {
-            if (mode === 'stopwatch') {
-                // Stopwatch mode: count up
-                interval = setInterval(() => {
-                    setTimeLeft((prev) => prev + 1);
-                }, 1000);
-            } else if (timeLeft > 0) {
-                // Timer modes: count down
-                interval = setInterval(() => {
-                    setTimeLeft((prev) => {
-                        if (prev <= 1) {
-                            handleComplete();
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
+        if (isActive && mode !== 'stopwatch') {
+            // If starting fresh or resuming, we need to calculate target end time
+            // But if we just rely on endTime, pausing becomes hard.
+            // Better approach for headers:
+            // On start/resume: endTime = Date.now() + timeLeft * 1000
+
+            if (!endTimeRef.current) {
+                endTimeRef.current = Date.now() + timeLeft * 1000;
             }
+
+            const tick = () => {
+                const now = Date.now();
+                if (endTimeRef.current) {
+                    const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
+                    setTimeLeft(remaining);
+
+                    if (remaining <= 0) {
+                        endTimeRef.current = null;
+                        handleComplete();
+                        return;
+                    }
+                }
+                rafRef.current = requestAnimationFrame(tick);
+            };
+
+            rafRef.current = requestAnimationFrame(tick);
+
+            return () => {
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            };
+        } else if (isActive && mode === 'stopwatch') {
+            // Stopwatch logic (count up)
+            const startTime = Date.now() - (timeLeft * 1000); // Derive start time from current count
+
+            const tick = () => {
+                const now = Date.now();
+                const elapsed = Math.floor((now - startTime) / 1000);
+                setTimeLeft(elapsed);
+                rafRef.current = requestAnimationFrame(tick);
+            }
+            rafRef.current = requestAnimationFrame(tick);
+
+            return () => {
+                if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            };
+        } else {
+            // Paused
+            endTimeRef.current = null;
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
         }
-        return () => clearInterval(interval);
-    }, [isActive, timeLeft, handleComplete, mode]);
+    }, [isActive, mode, handleComplete]); // Removed timeLeft from dependency to avoid loop, but need to handle pause correctly
 
     const toggleTimer = () => {
-        if (soundEnabled) playClick();
-        setIsActive(!isActive);
+        playClick();
+        setIsActive(prev => {
+            if (prev) {
+                // Pausing: endTimeRef is cleared in useEffect cleanup/else branch, 
+                // but we need to ensure timeLeft isn't lost. 
+                // actually timeLeft is state, so it persists. 
+                // When resuming, useEffect will calculate new endTimeRef based on current timeLeft.
+                return false;
+            } else {
+                return true;
+            }
+        });
     };
 
     const resetTimer = () => {
         setIsActive(false);
+        endTimeRef.current = null;
         if (mode === 'work') setTimeLeft(timer.workDuration);
         else if (mode === 'short_break') setTimeLeft(timer.shortBreakDuration);
         else if (mode === 'long_break') setTimeLeft(timer.longBreakDuration);
@@ -124,21 +175,23 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     };
 
     const skipSession = () => {
+        endTimeRef.current = null;
         handleComplete();
     };
 
     const updateTimeLeft = (seconds: number) => {
         setTimeLeft(seconds);
         setIsActive(false);
+        endTimeRef.current = null;
     };
 
     // Calculate progress for UI ring
     let progress = 0;
     if (mode === 'stopwatch') {
-        progress = 1; // Always full for stopwatch
+        progress = 1;
     } else {
         const totalTime = mode === 'work' ? timer.workDuration : (mode === 'short_break' ? timer.shortBreakDuration : timer.longBreakDuration);
-        progress = 1 - (timeLeft / totalTime);
+        progress = totalTime > 0 ? (timeLeft / totalTime) : 0;
     }
 
     return (
@@ -154,7 +207,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
                 resetTimer,
                 skipSession,
                 updateTimeLeft,
-                progress
+                progress,
+                sessionsCompleted
             }}
         >
             {children}

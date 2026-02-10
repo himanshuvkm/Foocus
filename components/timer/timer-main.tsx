@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useTimer } from '@/contexts/timer-context';
+import { useSettings } from '@/contexts/settings-context';
 import { TimerProgressRing } from './timer-progress-ring';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,8 @@ import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils'; // Assuming you have this utility
 
 export function TimerMain() {
-    const { timeLeft, progress, isActive, toggleTimer, resetTimer, skipSession, mode, updateTimeLeft, setMode } = useTimer();
+    const { timeLeft, progress, isActive, toggleTimer, resetTimer, skipSession, mode, updateTimeLeft, setMode, sessionsCompleted } = useTimer();
+    const { timer } = useSettings(); // Need to import this hook in this file
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
@@ -63,9 +65,16 @@ export function TimerMain() {
         <div className="flex flex-col items-center justify-center space-y-8">
             <TimerProgressRing progress={progress} size={400} strokeWidth={16}>
                 <div className="flex flex-col items-center gap-4">
-                    <span className="text-xl uppercase tracking-widest font-medium text-muted-foreground mt-2">
-                        {mode.replace('_', ' ')}
-                    </span>
+                    <div className="flex flex-col items-center">
+                        <span className="text-xl uppercase tracking-widest font-medium text-muted-foreground mt-2">
+                            {mode.replace('_', ' ')}
+                        </span>
+                        {mode === 'work' && (
+                            <span className="text-sm text-muted-foreground/60 font-mono mt-1">
+                                Session {sessionsCompleted % timer.longBreakInterval + 1}/{timer.longBreakInterval}
+                            </span>
+                        )}
+                    </div>
                     {isEditing ? (
                         <Input
                             ref={inputRef}
@@ -129,10 +138,10 @@ export function TimerMain() {
 
             {/* Mode Selector */}
             <div className="flex items-center gap-2 p-1 rounded-full bg-secondary/50 backdrop-blur-sm">
-                <Button variant={mode === 'work' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('work')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'work' && "bg-background shadow-sm")}>Work</Button>
-                <Button variant={mode === 'short_break' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('short_break')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'short_break' && "bg-background shadow-sm")}>Short</Button>
-                <Button variant={mode === 'long_break' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('long_break')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'long_break' && "bg-background shadow-sm")}>Long</Button>
-                <Button variant={mode === 'stopwatch' ? 'background' : 'ghost'} size="sm" onClick={() => setMode('stopwatch')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'stopwatch' && "bg-background shadow-sm")}>Stopwatch</Button>
+                <Button variant={mode === 'work' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('work')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'work' && "bg-background shadow-sm")}>Work</Button>
+                <Button variant={mode === 'short_break' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('short_break')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'short_break' && "bg-background shadow-sm")}>Short</Button>
+                <Button variant={mode === 'long_break' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('long_break')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'long_break' && "bg-background shadow-sm")}>Long</Button>
+                <Button variant={mode === 'stopwatch' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('stopwatch')} className={cn("h-8 text-xs px-4 rounded-full transition-all", mode === 'stopwatch' && "bg-background shadow-sm")}>Stopwatch</Button>
             </div>
         </div>
     );

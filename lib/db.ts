@@ -10,29 +10,32 @@ interface FoocusDB extends DBSchema {
     analytics: {
         key: string;
         value: {
-            id: string;
-            date: string; // YYYY-MM-DD
-            focusTime: number; // in seconds
-            completedTasks: number;
+            date: string; // YYYY-MM-DD (Key)
+            totalFocusTime: number; // in seconds
+            sessionsCompleted: number;
         };
-        indexes: { 'by-date': string };
     };
 }
 
 const DB_NAME = 'foocus-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const initDB = async (): Promise<IDBPDatabase<FoocusDB>> => {
     return openDB<FoocusDB>(DB_NAME, DB_VERSION, {
-        upgrade(db) {
+        upgrade(db, oldVersion, newVersion, transaction) {
             if (!db.objectStoreNames.contains('tasks')) {
                 const store = db.createObjectStore('tasks', { keyPath: 'id' });
                 store.createIndex('by-status', 'status');
                 store.createIndex('by-priority', 'priority');
             }
-            if (!db.objectStoreNames.contains('analytics')) {
-                const store = db.createObjectStore('analytics', { keyPath: 'id' });
-                store.createIndex('by-date', 'date');
+
+            if (oldVersion < 2) {
+                // If upgrading from v1, we might need to recreate analytics or handle migration
+                if (db.objectStoreNames.contains('analytics')) {
+                    db.deleteObjectStore('analytics');
+                }
+                const store = db.createObjectStore('analytics', { keyPath: 'date' });
+                // No index needed for date since it's the key
             }
         },
     });

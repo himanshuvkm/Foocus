@@ -5,13 +5,17 @@ import { TaskList } from '@/components/tasks/task-list';
 import { Header } from '@/components/layout/header';
 import { AnimatePresence, motion } from 'framer-motion';
 
+import { StatsDashboard } from '@/components/stats/stats-dashboard';
+import { SettingsModal } from '@/components/settings/settings-modal';
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-background relative overflow-hidden flex flex-col">
       <Header />
+      <SettingsModal />
 
       <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="container mx-auto px-4 py-24 min-h-full flex flex-col gap-16">
+        <div className="container mx-auto px-4 py-12 min-h-full flex flex-col gap-12">
 
           {/* Timer Hero Section */}
           <motion.section
@@ -21,6 +25,15 @@ export default function Home() {
             className="flex justify-center"
           >
             <TimerMain />
+          </motion.section>
+
+          {/* Stats Section */}
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <StatsDashboard />
           </motion.section>
 
           {/* Tasks Section */}
