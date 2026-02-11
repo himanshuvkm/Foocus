@@ -1,52 +1,47 @@
 "use client";
 
-import { TimerMain } from '@/components/timer/timer-main';
-import { TaskList } from '@/components/tasks/task-list';
-import { Header } from '@/components/layout/header';
-import { motion } from 'framer-motion';
-
-import { StatsDashboard } from '@/components/stats/stats-dashboard';
-
+import { useState } from "react";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { TimerPanel } from "./components/TimerPanel";
+import { TaskPanel } from "./components/TaskPanel";
 
 export default function Home() {
+  const [activeTaskTitle, setActiveTaskTitle] = useState<string | null>(null);
+
   return (
-    <main className="min-h-screen bg-background relative overflow-hidden flex flex-col">
-      <Header />
-      
+    <div className="min-h-screen bg-[#f5f5f7] text-slate-900 flex items-center justify-center px-4 py-8 font-sans">
+      <main className="w-full max-w-5xl">
+        <div className="relative rounded-[32px] bg-white shadow-[0_24px_60px_rgba(15,23,42,0.08)] border border-slate-100 overflow-hidden">
+          {/* Top bar */}
+          <header className="flex items-center justify-between px-8 pt-6 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-[#ffe2dd] flex items-center justify-center text-[18px]">
+                🍅
+              </div>
+              <div>
+                <h1 className="text-sm font-semibold tracking-tight">
+                  Pomodoro
+                </h1>
+                <p className="text-[11px] text-slate-400">
+                  Stay focused, one session at a time.
+                </p>
+              </div>
+            </div>
+            <ThemeToggle />
+          </header>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="container mx-auto px-4 py-12 min-h-full flex flex-col gap-12">
-
-          {/* Timer Hero Section */}
-          <motion.section
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center"
-          >
-            <TimerMain />
-          </motion.section>
-
-          {/* Stats Section */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <StatsDashboard />
-          </motion.section>
-
-          {/* Tasks Section */}
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="w-full max-w-2xl mx-auto"
-          >
-            <TaskList />
-          </motion.section>
+          {/* Content split */}
+          <div className="grid gap-0 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            <div className="px-8 py-6">
+              <TimerPanel activeTaskTitle={activeTaskTitle} />
+            </div>
+            <div className="border-t md:border-t-0 md:border-l border-slate-100 bg-[#f8fafc] px-8 py-6">
+              <TaskPanel onActiveTaskChange={setActiveTaskTitle} />
+            </div>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
+

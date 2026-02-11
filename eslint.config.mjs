@@ -13,13 +13,6 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  {
-    rules: {
-      // These patterns are safe and intentional in this app, but conflict with
-      // React 19's very strict Compiler-oriented lint rules.
-      "react-hooks/set-state-in-effect": "off",
-    },
-  },
 ]);
 
 export default eslintConfig;
