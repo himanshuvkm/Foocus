@@ -49,7 +49,7 @@ export default function HomePage() {
       const loadedSettings = parsed.settings ?? DEFAULT_SETTINGS;
       setSettings(loadedSettings);
       setRemainingSeconds(loadedSettings.focusMinutes * 60);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -137,8 +137,8 @@ export default function HomePage() {
       next === "focus"
         ? settings.focusMinutes
         : next === "short"
-        ? settings.shortMinutes
-        : settings.longMinutes;
+          ? settings.shortMinutes
+          : settings.longMinutes;
 
     setRemainingSeconds(base * 60);
   };
@@ -233,9 +233,8 @@ export default function HomePage() {
 
   return (
     <main
-      className={`min-h-screen bg-black text-white px-4 transition-colors ${
-        focusMode && cursorHidden ? "cursor-none" : ""
-      }`}
+      className={`min-h-screen bg-black text-white px-4 transition-colors ${focusMode && cursorHidden ? "cursor-none" : ""
+        }`}
     >
       <TimerSection
         mode={mode}

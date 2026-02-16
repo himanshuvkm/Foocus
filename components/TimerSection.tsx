@@ -101,17 +101,16 @@ export function TimerSection({
             <button
               key={m}
               onClick={() => onModeChange(m)}
-              className={`relative transition-colors ${
-                mode === m
+              className={`relative transition-colors ${mode === m
                   ? "text-white"
                   : "text-neutral-600 hover:text-neutral-300"
-              }`}
+                }`}
             >
               {m === "focus"
                 ? "Focus"
                 : m === "short"
-                ? "Short"
-                : "Long"}
+                  ? "Short"
+                  : "Long"}
 
               {mode === m && (
                 <motion.div

@@ -12,9 +12,9 @@ interface TimerRectProps {
 const WIDTH = 700;
 const HEIGHT = 320;
 const STROKE = 6;
-const RADIUS = 24; // corner roundness
+const RADIUS = 24; 
 
-// Rectangle perimeter formula
+
 const PERIMETER = 2 * (WIDTH + HEIGHT - 2 * RADIUS * 2) + 2 * Math.PI * RADIUS;
 
 export function TimerCircle({
