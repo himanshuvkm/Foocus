@@ -3,17 +3,18 @@
 import { motion, useAnimationControls } from "framer-motion";
 import { useEffect } from "react";
 
+export type TimerMode = "focus" | "short" | "long" | "stopwatch";
+
 interface TimerRectProps {
   progress: number; // 0–1
-  mode: "focus" | "short" | "long";
+  mode: TimerMode;
   isRunning: boolean;
 }
 
 const WIDTH = 700;
 const HEIGHT = 320;
 const STROKE = 6;
-const RADIUS = 24; 
-
+const RADIUS = 24;
 
 const PERIMETER = 2 * (WIDTH + HEIGHT - 2 * RADIUS * 2) + 2 * Math.PI * RADIUS;
 
@@ -25,25 +26,32 @@ export function TimerCircle({
   const controls = useAnimationControls();
 
   useEffect(() => {
+    if (mode === "stopwatch") {
+      controls.start({
+        strokeDashoffset: 0,
+        transition: { duration: 0.3 },
+      });
+      return;
+    }
+
     const offset = PERIMETER * (1 - progress);
 
     controls.start({
       strokeDashoffset: offset,
       transition: { duration: 0.4, ease: "easeInOut" },
     });
-  }, [progress, controls]);
+  }, [progress, controls, mode]);
 
   const activeStroke =
-    mode === "focus"
+    mode === "focus" || mode === "stopwatch"
       ? "rgba(255,255,255,0.9)"
       : "rgba(255,255,255,0.4)";
 
   return (
-    <div className="relative flex items-center justify-center">
+    <div className="relative w-full max-w-[700px] mx-auto flex items-center justify-center">
       <svg
-        width={WIDTH}
-        height={HEIGHT}
-        className="relative"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="w-full h-auto relative"
       >
         {/* Background Track */}
         <rect

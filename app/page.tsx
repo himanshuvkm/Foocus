@@ -1,16 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TimerSection } from "@/components/TimerSection";
+import { Mode, TimerSection } from "@/components/TimerSection";
 import { Task, TaskList } from "@/components/TaskList";
-
-type Mode = "focus" | "short" | "long";
-
-type Settings = {
-  focusMinutes: number;
-  shortMinutes: number;
-  longMinutes: number;
-};
+import { Settings, SettingsModal } from "@/components/SettingsModal";
 
 const DEFAULT_SETTINGS: Settings = {
   focusMinutes: 25,
@@ -26,7 +19,7 @@ const TICK_SOUND_URL =
 export default function HomePage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<Mode>("focus");
-  const [remainingSeconds, setRemainingSeconds] = useState(
+  const [timerSeconds, setTimerSeconds] = useState(
     DEFAULT_SETTINGS.focusMinutes * 60
   );
   const [isRunning, setIsRunning] = useState(false);
@@ -34,30 +27,41 @@ export default function HomePage() {
   const [focusMode, setFocusMode] = useState(false);
   const [cursorHidden, setCursorHidden] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const intervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  /* ---------------- Init ---------------- */
+  /* ---------------- Hydration & Persistence ---------------- */
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY_STATE);
-    if (!raw) return;
-
-    try {
-      const parsed = JSON.parse(raw);
-      const loadedSettings = parsed.settings ?? DEFAULT_SETTINGS;
-      setSettings(loadedSettings);
-      setRemainingSeconds(loadedSettings.focusMinutes * 60);
-    } catch { }
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.settings) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSettings(parsed.settings);
+          setTimerSeconds(parsed.settings.focusMinutes * 60);
+        }
+        if (Array.isArray(parsed.tasks)) {
+          setTasks(parsed.tasks);
+        }
+      } catch {
+        // Fall back to defaults
+      }
+    }
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!isHydrated) return;
     localStorage.setItem(
       STORAGE_KEY_STATE,
-      JSON.stringify({ settings })
+      JSON.stringify({ settings, tasks })
     );
-  }, [settings]);
+  }, [settings, tasks, isHydrated]);
 
   /* ---------------- Audio Setup ---------------- */
 
@@ -69,31 +73,91 @@ export default function HomePage() {
   const playTick = useCallback(() => {
     if (isMuted || !audioRef.current) return;
     audioRef.current.currentTime = 0;
-    void audioRef.current.play();
+    void audioRef.current.play().catch(() => {});
   }, [isMuted]);
 
-  /* ---------------- Timer Logic ---------------- */
+  const playCompletionChime = useCallback(() => {
+    if (isMuted) return;
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+
+      // Two warm harmonic bell tones: C5 (523.25Hz) and E5 (659.25Hz)
+      [523.25, 659.25].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + i * 0.12);
+
+        gain.gain.setValueAtTime(0.2, now + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 1.2);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 1.2);
+      });
+    } catch {
+      // AudioContext policy fallback
+    }
+  }, [isMuted]);
+
+  const triggerNotification = useCallback(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification("Foocus", {
+        body: `${
+          mode === "focus" ? "Focus session" : "Break"
+        } complete! Take a breath.`,
+        icon: "/favicon.ico",
+      });
+    }
+  }, [mode]);
+
+  const requestNotificationPermission = () => {
+    if (
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "default"
+    ) {
+      void Notification.requestPermission();
+    }
+  };
+
+  /* ---------------- Timer Calculations ---------------- */
 
   const totalSeconds = useMemo(() => {
     if (mode === "focus") return settings.focusMinutes * 60;
     if (mode === "short") return settings.shortMinutes * 60;
-    return settings.longMinutes * 60;
+    if (mode === "long") return settings.longMinutes * 60;
+    return 0;
   }, [mode, settings]);
 
-  const progress = 1 - remainingSeconds / totalSeconds;
+  const progress = useMemo(() => {
+    if (mode === "stopwatch") return 1;
+    if (totalSeconds <= 0) return 0;
+    return 1 - timerSeconds / totalSeconds;
+  }, [mode, timerSeconds, totalSeconds]);
 
-  const stopTimer = () => {
+  const stopTimer = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  };
+  }, []);
 
   const handleComplete = useCallback(() => {
     stopTimer();
     setIsRunning(false);
-    playTick();
-  }, [playTick]);
+    playCompletionChime();
+    triggerNotification();
+  }, [stopTimer, playCompletionChime, triggerNotification]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -102,89 +166,132 @@ export default function HomePage() {
     }
 
     intervalRef.current = window.setInterval(() => {
-      setRemainingSeconds((prev) => {
-        if (prev <= 1) {
-          handleComplete();
-          return 0;
-        }
-
-        playTick();
-        return prev - 1;
-      });
+      if (mode === "stopwatch") {
+        setTimerSeconds((prev) => {
+          playTick();
+          return prev + 1;
+        });
+      } else {
+        setTimerSeconds((prev) => {
+          if (prev <= 1) {
+            handleComplete();
+            return 0;
+          }
+          playTick();
+          return prev - 1;
+        });
+      }
     }, 1000);
 
     return stopTimer;
-  }, [isRunning, handleComplete, playTick]);
+  }, [isRunning, mode, handleComplete, playTick, stopTimer]);
 
   /* ---------------- Controls ---------------- */
 
-  const handleStartPause = () => {
+  const handleStartPause = useCallback(() => {
+    requestNotificationPermission();
     setIsRunning((prev) => !prev);
-  };
+  }, []);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     stopTimer();
     setIsRunning(false);
-    setRemainingSeconds(totalSeconds);
-  };
+    if (mode === "stopwatch") {
+      setTimerSeconds(0);
+    } else {
+      setTimerSeconds(totalSeconds);
+    }
+  }, [stopTimer, mode, totalSeconds]);
 
-  const switchMode = (next: Mode) => {
-    stopTimer();
-    setIsRunning(false);
-    setMode(next);
+  const switchMode = useCallback(
+    (next: Mode) => {
+      stopTimer();
+      setIsRunning(false);
+      setMode(next);
 
-    const base =
-      next === "focus"
-        ? settings.focusMinutes
-        : next === "short"
-          ? settings.shortMinutes
-          : settings.longMinutes;
+      if (next === "stopwatch") {
+        setTimerSeconds(0);
+      } else {
+        const base =
+          next === "focus"
+            ? settings.focusMinutes
+            : next === "short"
+            ? settings.shortMinutes
+            : settings.longMinutes;
+        setTimerSeconds(base * 60);
+      }
+    },
+    [stopTimer, settings]
+  );
 
-    setRemainingSeconds(base * 60);
+  const handleSaveSettings = (newSettings: Settings) => {
+    setSettings(newSettings);
+    if (!isRunning) {
+      if (mode === "focus") setTimerSeconds(newSettings.focusMinutes * 60);
+      if (mode === "short") setTimerSeconds(newSettings.shortMinutes * 60);
+      if (mode === "long") setTimerSeconds(newSettings.longMinutes * 60);
+    }
   };
 
   /* ---------------- Formatting ---------------- */
 
   const formattedTime = useMemo(() => {
-    const h = Math.floor(remainingSeconds / 3600)
+    const h = Math.floor(timerSeconds / 3600)
       .toString()
       .padStart(2, "0");
-    const m = Math.floor((remainingSeconds % 3600) / 60)
+    const m = Math.floor((timerSeconds % 3600) / 60)
       .toString()
       .padStart(2, "0");
-    const s = (remainingSeconds % 60)
-      .toString()
-      .padStart(2, "0");
+    const s = (timerSeconds % 60).toString().padStart(2, "0");
 
     return `${h}:${m}:${s}`;
-  }, [remainingSeconds]);
+  }, [timerSeconds]);
 
-  /* ---------------- Keyboard Shortcuts ---------------- */
+  /* ---------------- Document Title ---------------- */
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        handleStartPause();
-      }
-      if (e.key === "r") handleReset();
-      if (e.key === "1") switchMode("focus");
-      if (e.key === "2") switchMode("short");
-      if (e.key === "3") switchMode("long");
-      if (e.key === "Escape") exitFocusMode();
-    };
-
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [totalSeconds]);
+    if (isRunning) {
+      const modeLabel = mode.charAt(0).toUpperCase() + mode.slice(1);
+      document.title = `${formattedTime} - ${modeLabel} | Foocus`;
+    } else {
+      document.title = "Foocus";
+    }
+  }, [isRunning, formattedTime, mode]);
 
   /* ---------------- Focus Mode ---------------- */
 
-  useEffect(() => {
-    if (!focusMode) {
-      setCursorHidden(false);
-      return;
+  const enterFocusMode = () => {
+    setFocusMode(true);
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+
+  const exitFocusMode = useCallback(() => {
+    setFocusMode(false);
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
     }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setFocusMode(false);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener(
+        "webkitfullscreenchange",
+        handleFullscreenChange
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!focusMode) return;
 
     let timeout: number;
 
@@ -200,28 +307,71 @@ export default function HomePage() {
     return () => {
       window.removeEventListener("mousemove", handleMove);
       clearTimeout(timeout);
+      setCursorHidden(false);
     };
   }, [focusMode]);
 
-  const enterFocusMode = () => {
-    setFocusMode(true);
-    document.documentElement.requestFullscreen?.();
-  };
+  /* ---------------- Keyboard Shortcuts ---------------- */
 
-  const exitFocusMode = () => {
-    setFocusMode(false);
-    if (document.fullscreenElement) {
-      document.exitFullscreen?.();
-    }
-  };
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in any input/textarea
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        handleStartPause();
+      }
+      if (e.key === "r" || e.key === "R") {
+        handleReset();
+      }
+      if (e.key === "1") switchMode("focus");
+      if (e.key === "2") switchMode("short");
+      if (e.key === "3") switchMode("long");
+      if (e.key === "4") switchMode("stopwatch");
+      if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        setIsSettingsOpen((prev) => !prev);
+      }
+      if (e.key === "Escape") {
+        if (isSettingsOpen) {
+          setIsSettingsOpen(false);
+        } else {
+          exitFocusMode();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [
+    handleStartPause,
+    handleReset,
+    switchMode,
+    isSettingsOpen,
+    exitFocusMode,
+  ]);
 
   /* ---------------- Tasks ---------------- */
 
+  const addTask = (title: string) => {
+    const id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now());
+    setTasks((prev) => [{ id, title, done: false }, ...prev]);
+  };
+
   const toggleTask = (id: string) => {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, done: !t.done } : t
-      )
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
     );
   };
 
@@ -233,8 +383,13 @@ export default function HomePage() {
 
   return (
     <main
-      className={`min-h-screen bg-black text-white px-4 transition-colors ${focusMode && cursorHidden ? "cursor-none" : ""
-        }`}
+      className={`min-h-screen bg-black text-white px-4 transition-colors ${
+        focusMode
+          ? `flex flex-col items-center justify-center h-screen overflow-hidden ${
+              cursorHidden ? "cursor-none" : ""
+            }`
+          : ""
+      }`}
     >
       <TimerSection
         mode={mode}
@@ -245,26 +400,34 @@ export default function HomePage() {
         onStartPause={handleStartPause}
         onReset={handleReset}
         isMuted={isMuted}
-        onToggleMute={() => setIsMuted((m) => !m)}
+        onToggleMute={() => {
+          requestNotificationPermission();
+          setIsMuted((m) => !m);
+        }}
         focusMode={focusMode}
+        cursorHidden={cursorHidden}
         onEnterFocus={enterFocusMode}
+        onExitFocus={exitFocusMode}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {!focusMode && (
-        <div className="w-full max-w-3xl mx-auto">
+        <div className="w-full max-w-3xl mx-auto pb-16">
           <TaskList
             tasks={tasks}
-            onAddTask={(title) =>
-              setTasks((prev) => [
-                { id: crypto.randomUUID(), title, done: false },
-                ...prev,
-              ])
-            }
+            onAddTask={addTask}
             onToggleTask={toggleTask}
             onDeleteTask={deleteTask}
           />
         </div>
       )}
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
+      />
     </main>
   );
 }
